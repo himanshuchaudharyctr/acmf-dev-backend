@@ -5,6 +5,7 @@ import java.util.Collections;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // Added this import
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -23,59 +24,51 @@ import jakarta.servlet.http.HttpServletRequest;
 public class AppConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
-        http.sessionManagement(Management -> Management.sessionCreationPolicy(
-                        SessionCreationPolicy.STATELESS))
+    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                // 1. Session Management
+                .sessionManagement(management -> management
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // 2. CORS Configuration (Allow everything)
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
+                    // THIS FIXES THE ISSUE: Allows EC2 IP, localhost, anything.
                     config.setAllowedOriginPatterns(Collections.singletonList("*"));
-                    config.setAllowedMethods(Collections.singletonList("*"));
+                    config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     config.setAllowedHeaders(Collections.singletonList("*"));
                     config.setAllowCredentials(true);
+                    config.setExposedHeaders(Arrays.asList("Authorization"));
+                    config.setMaxAge(3600L);
                     return config;
                 }))
-                .authorizeHttpRequests(Authorize -> Authorize
-                        .requestMatchers("/api/**")
-                        .authenticated().anyRequest().permitAll())
-                .addFilterBefore(new JwtTokenValidator(),BasicAuthenticationFilter.class)
+
+                // 3. Disable CSRF (Standard for APIs)
                 .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()));
+
+                // 4. Authorization Rules
+                .authorizeHttpRequests(authorize -> authorize
+                        // CRITICAL: Allow Preflight (OPTIONS) requests generally
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Public endpoints
+                        .requestMatchers("/api/auth/**", "/actuator/**").permitAll()
+                        // Secured endpoints
+                        .requestMatchers("/api/**").authenticated()
+                        .anyRequest().permitAll())
+
+                // 5. Add JWT Filter
+                .addFilterBefore(new JwtTokenValidator(), BasicAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    private CorsConfigurationSource corsConfigurationSource() {
-        // TODO Auto-generated method stub
-        return new CorsConfigurationSource() {
-
-            @Override
-            public CorsConfiguration getCorsConfiguration(
-                    HttpServletRequest request) {
-                // TODO Auto-generated method stub
-                CorsConfiguration cfg = new CorsConfiguration();
-
-                cfg.setAllowedOrigins(Arrays.asList(
-                        "http://localhost:3000",
-                        "http://localhost:5173",
-                        "http://localhost:8081"));
-                cfg.setAllowedMethods(Collections.singletonList("*"));
-                cfg.setAllowCredentials(true);
-                cfg.setAllowedHeaders(Collections.singletonList("*"));
-                cfg.setExposedHeaders(Arrays.asList("Authorization"));
-                cfg.setMaxAge(3600L);
-                return cfg;
-            }
-        };
     }
 
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-
     }
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
-
 }
