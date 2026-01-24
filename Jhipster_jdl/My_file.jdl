@@ -1,0 +1,19 @@
+application {
+    config {
+        baseName MyApp,
+        applicationType monolith,
+        databaseType sql,
+        buildTool maven
+    }
+}
+entity Project {
+    name String required,
+    description String,
+}
+entity User {
+    login String required,
+    email String required,
+}
+relationship OneToMany {
+    Project{owner} to User{user}
+}
