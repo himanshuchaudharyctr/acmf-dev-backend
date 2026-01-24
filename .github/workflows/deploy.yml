@@ -17,7 +17,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # FIXED: Running maven from root (removed cd acmf-apis)
+      # FIXED: Running at root (removed 'cd acmf-apis')
       - name: Build Backend JAR
         run: mvn clean package -DskipTests
 
@@ -26,18 +26,19 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          # FIXED: Hardcoded region to bypass secret issues
+          aws-region: ap-south-1
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      # FIXED: Running docker form root, removed cd acmf-apis
       - name: Build and Push Backend Image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: acmf-backend
           IMAGE_TAG: latest
         run: |
+          # FIXED: Using -f docker/Dockerfile because your Dockerfile is inside the docker folder
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f docker/Dockerfile .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
