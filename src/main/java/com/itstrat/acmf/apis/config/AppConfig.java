@@ -26,6 +26,14 @@ public class AppConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
         http.sessionManagement(Management -> Management.sessionCreationPolicy(
                         SessionCreationPolicy.STATELESS))
+                .cors(cors -> cors.configurationSource(request -> {
+                    CorsConfiguration config = new CorsConfiguration();
+                    config.setAllowedOriginPatterns(Collections.singletonList("*"));
+                    config.setAllowedMethods(Collections.singletonList("*"));
+                    config.setAllowedHeaders(Collections.singletonList("*"));
+                    config.setAllowCredentials(true);
+                    return config;
+                }))
                 .authorizeHttpRequests(Authorize -> Authorize
                         .requestMatchers("/api/**")
                         .authenticated().anyRequest().permitAll())
