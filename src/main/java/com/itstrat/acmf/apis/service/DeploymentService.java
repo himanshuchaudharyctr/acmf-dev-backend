@@ -66,13 +66,28 @@ public class DeploymentService {
 //                            "jhipster/jhipster:v8.11.0 jhipster docker-compose",
 //                    new File(newProjectPath).getAbsolutePath()
 //            );
+//            String dockerCmd = String.format(
+//                    "docker run --rm -i " +
+//                            "-v /var/run/docker.sock:/var/run/docker.sock " + // CRITICAL: Access host Docker
+//                            "-v \"%s:/home/jhipster/app\" " +
+//                            "-w /home/jhipster/app " +
+//                            "jhipster/jhipster:v8.11.0 jhipster docker-compose --skip-checks", // Added --skip-checks to avoid strict version check
+//                    new File(newProjectPath).getAbsolutePath()
+//            );
+
+            String hostRootPath = System.getenv("HOST_ROOT_PATH");
+            String projectFolder = new File(newProjectPath).getName(); // e.g., "test1"
+            String mountPath = (hostRootPath != null && !hostRootPath.isEmpty())
+                    ? hostRootPath + "/" + projectFolder
+                    : new File(newProjectPath).getAbsolutePath();
+
             String dockerCmd = String.format(
                     "docker run --rm -i " +
-                            "-v /var/run/docker.sock:/var/run/docker.sock " + // CRITICAL: Access host Docker
-                            "-v \"%s:/home/jhipster/app\" " +
+                            "-v /var/run/docker.sock:/var/run/docker.sock " +
+                            "-v \"%s:/home/jhipster/app\" " + // Use calculated Mount Path
                             "-w /home/jhipster/app " +
-                            "jhipster/jhipster:v8.11.0 jhipster docker-compose --skip-checks", // Added --skip-checks to avoid strict version check
-                    new File(newProjectPath).getAbsolutePath()
+                            "jhipster/jhipster:v8.11.0 jhipster docker-compose --skip-checks",
+                    mountPath
             );
             ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
             processBuilder.redirectErrorStream(true);
@@ -140,86 +155,181 @@ public class DeploymentService {
         }
     }
 
-    public static void createKubernetesDirectory(String newProjectPath, String appName , String applicationType , String accountId , String region) {
-            Path kubernetesPath = Paths.get(newProjectPath, "kubernetes");
-            Path yoRcFilePath = kubernetesPath.resolve(".yo-rc.json");
-
-            try {
-
-                if (!Files.exists(kubernetesPath)) {
-                    Files.createDirectories(kubernetesPath);
-                    LOGGER.info("Kubernetes directory created at: " + kubernetesPath.toString());
-                } else {
-                    LOGGER.info("Kubernetes directory already exists: " + kubernetesPath.toString());
-                }
-
-
-                String yoRcContent = "{\n" +
-                        "  \"generator-jhipster\": {\n" +
-                        "    \"appsFolders\": [\"" + appName + "\"],\n" +
-                        "    \"deploymentApplicationType\": \""+ applicationType +"\",\n" +
-                        "    \"directoryPath\": \"../../\",\n" +
-                        "    \"dockerPushCommand\": \"docker push\",\n" +
-                        "    \"dockerRepositoryName\": \"\",\n" +
-                        "    \"ingressDomain\": null,\n" +
-                        "    \"ingressType\": null,\n" +
-                        "    \"kubernetesNamespace\": \"default\",\n" +
-                        "    \"kubernetesServiceType\": \"LoadBalancer\",\n" +
-                        "    \"kubernetesStorageClassName\": null,\n" +
-                        "    \"kubernetesUseDynamicStorage\": false,\n" +
-                        "    \"monitoring\": \"no\",\n" +
-                        "    \"serviceDiscoveryType\": \"no\"\n" +
-                        "  }\n" +
-                        "}";
-
-
-                Files.write(yoRcFilePath, yoRcContent.getBytes());
-                LOGGER.info(".yo-rc.json file created at: " + yoRcFilePath.toString());
-
-
-//                ProcessBuilder processBuilder = new ProcessBuilder("cmd.exe", "/c", "jhipster kubernetes");
-//                processBuilder.directory(kubernetesPath.toFile());
+//    public static void createKubernetesDirectory(String newProjectPath, String appName , String applicationType , String accountId , String region) {
+//            Path kubernetesPath = Paths.get(newProjectPath, "kubernetes");
+//            Path yoRcFilePath = kubernetesPath.resolve(".yo-rc.json");
+//
+//            try {
+//
+//                if (!Files.exists(kubernetesPath)) {
+//                    Files.createDirectories(kubernetesPath);
+//                    LOGGER.info("Kubernetes directory created at: " + kubernetesPath.toString());
+//                } else {
+//                    LOGGER.info("Kubernetes directory already exists: " + kubernetesPath.toString());
+//                }
+//
+//
+//                String yoRcContent = "{\n" +
+//                        "  \"generator-jhipster\": {\n" +
+//                        "    \"appsFolders\": [\"" + appName + "\"],\n" +
+//                        "    \"deploymentApplicationType\": \""+ applicationType +"\",\n" +
+//                        "    \"directoryPath\": \"../../\",\n" +
+//                        "    \"dockerPushCommand\": \"docker push\",\n" +
+//                        "    \"dockerRepositoryName\": \"\",\n" +
+//                        "    \"ingressDomain\": null,\n" +
+//                        "    \"ingressType\": null,\n" +
+//                        "    \"kubernetesNamespace\": \"default\",\n" +
+//                        "    \"kubernetesServiceType\": \"LoadBalancer\",\n" +
+//                        "    \"kubernetesStorageClassName\": null,\n" +
+//                        "    \"kubernetesUseDynamicStorage\": false,\n" +
+//                        "    \"monitoring\": \"no\",\n" +
+//                        "    \"serviceDiscoveryType\": \"no\"\n" +
+//                        "  }\n" +
+//                        "}";
+//
+//
+//                Files.write(yoRcFilePath, yoRcContent.getBytes());
+//                LOGGER.info(".yo-rc.json file created at: " + yoRcFilePath.toString());
+//
+//
+////                ProcessBuilder processBuilder = new ProcessBuilder("cmd.exe", "/c", "jhipster kubernetes");
+////                processBuilder.directory(kubernetesPath.toFile());
+////                Process process = processBuilder.start();
+////                process.waitFor();
+//
+//                // FIX: Use Docker to run JHipster Kubernetes generation
+//                String dockerCmd = String.format(
+//                        "docker run --rm -i -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+//                                "jhipster/jhipster:v8.11.0 jhipster kubernetes --force --skip-checks",
+//                        kubernetesPath.toAbsolutePath().toString()
+//                );
+//
+//                ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
+//                processBuilder.redirectErrorStream(true);
+//
 //                Process process = processBuilder.start();
+//
+//                // Read output to prevent process blocking
+//                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+//                    String line;
+//                    while ((line = reader.readLine()) != null) {
+//                        LOGGER.info("[K8s Gen]: " + line);
+//                    }
+//                }
+//
 //                process.waitFor();
+//
+//
+//                if (process.exitValue() == 0) {
+//                    LOGGER.info("Successfully executed the 'jhipster kubernetes' command.");
+//                } else {
+//                    LOGGER.warning("The 'jhipster kubernetes' command failed with exit code " + process.exitValue());
+//                }
+//                Path yamlFilePath = kubernetesPath.resolve(appName + "-k8s/" + appName + "-deployment.yml");
+//                Path serviceFilePath = kubernetesPath.resolve(appName +"-k8s/" + appName + "-service.yml");
+//                modifyDeploymentYaml(yamlFilePath, appName, accountId, region);
+//                modifyServiceYaml(serviceFilePath);
+//
+//            } catch (IOException | InterruptedException e) {
+//                LOGGER.log(Level.SEVERE, "Error creating Kubernetes directory, writing .yo-rc.json, or executing the jhipster command", e);
+//            }
+//        }
+//
 
-                // FIX: Use Docker to run JHipster Kubernetes generation
-                String dockerCmd = String.format(
-                        "docker run --rm -i -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
-                                "jhipster/jhipster:v8.11.0 jhipster kubernetes --force --skip-checks",
-                        kubernetesPath.toAbsolutePath().toString()
-                );
+public static void createKubernetesDirectory(String newProjectPath, String appName , String applicationType , String accountId , String region) {
+    Path kubernetesPath = Paths.get(newProjectPath, "kubernetes");
+    Path yoRcFilePath = kubernetesPath.resolve(".yo-rc.json");
 
-                ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
-                processBuilder.redirectErrorStream(true);
+    try {
+        if (!Files.exists(kubernetesPath)) {
+            Files.createDirectories(kubernetesPath);
+            LOGGER.info("Kubernetes directory created at: " + kubernetesPath.toString());
+        }
 
-                Process process = processBuilder.start();
+        // 1. Create the .yo-rc.json file as before
+        String yoRcContent = "{\n" +
+                "  \"generator-jhipster\": {\n" +
+                "    \"appsFolders\": [\"" + appName + "\"],\n" +
+                "    \"deploymentApplicationType\": \""+ applicationType +"\",\n" +
+                "    \"directoryPath\": \"../../\",\n" +
+                "    \"dockerPushCommand\": \"docker push\",\n" +
+                "    \"dockerRepositoryName\": \"\",\n" +
+                "    \"ingressDomain\": null,\n" +
+                "    \"ingressType\": null,\n" +
+                "    \"kubernetesNamespace\": \"default\",\n" +
+                "    \"kubernetesServiceType\": \"LoadBalancer\",\n" +
+                "    \"kubernetesStorageClassName\": null,\n" +
+                "    \"kubernetesUseDynamicStorage\": false,\n" +
+                "    \"monitoring\": \"no\",\n" +
+                "    \"serviceDiscoveryType\": \"no\"\n" +
+                "  }\n" +
+                "}";
 
-                // Read output to prevent process blocking
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                    String line;
-                    while ((line = reader.readLine()) != null) {
-                        LOGGER.info("[K8s Gen]: " + line);
-                    }
-                }
+        Files.write(yoRcFilePath, yoRcContent.getBytes());
+        LOGGER.info(".yo-rc.json file created at: " + yoRcFilePath.toString());
 
-                process.waitFor();
+        // 2. Calculate the Host Path for correct Volume Mounting
+        String hostRootPath = System.getenv("HOST_ROOT_PATH");
+        String projectFolder = new File(newProjectPath).getName(); // e.g. "test1"
+        String mountPath;
 
+        if (hostRootPath != null && !hostRootPath.isEmpty()) {
+            // EC2 Environment: Use the Host path + project name + kubernetes folder
+            mountPath = hostRootPath + "/" + projectFolder + "/kubernetes";
+        } else {
+            // Local Environment: Use absolute path
+            mountPath = kubernetesPath.toAbsolutePath().toString().replace("\\", "/");
+        }
 
-                if (process.exitValue() == 0) {
-                    LOGGER.info("Successfully executed the 'jhipster kubernetes' command.");
-                } else {
-                    LOGGER.warning("The 'jhipster kubernetes' command failed with exit code " + process.exitValue());
-                }
-                Path yamlFilePath = kubernetesPath.resolve(appName + "-k8s/" + appName + "-deployment.yml");
-                Path serviceFilePath = kubernetesPath.resolve(appName +"-k8s/" + appName + "-service.yml");
-                modifyDeploymentYaml(yamlFilePath, appName, accountId, region);
-                modifyServiceYaml(serviceFilePath);
+        // 3. Construct Docker Command
+        // -v mounts the host path to the container path
+        // --skip-checks avoids the "Docker version" error you saw earlier
+        String dockerCmd = String.format(
+                "docker run --rm -i " +
+                        "-v /var/run/docker.sock:/var/run/docker.sock " +
+                        "-v \"%s:/home/jhipster/app\" " +
+                        "-w /home/jhipster/app " +
+                        "jhipster/jhipster:v8.11.0 jhipster kubernetes --force --skip-checks",
+                mountPath
+        );
 
-            } catch (IOException | InterruptedException e) {
-                LOGGER.log(Level.SEVERE, "Error creating Kubernetes directory, writing .yo-rc.json, or executing the jhipster command", e);
+        // 4. Run the command using the OS-agnostic helper
+        ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
+        processBuilder.redirectErrorStream(true);
+
+        Process process = processBuilder.start();
+
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                LOGGER.info("[K8s Gen]: " + line);
             }
         }
-    private static void modifyServiceYaml(Path serviceFilePath) {
+
+        int exitCode = process.waitFor();
+
+        if (exitCode == 0) {
+            LOGGER.info("Successfully executed the 'jhipster kubernetes' command.");
+        } else {
+            LOGGER.warning("The 'jhipster kubernetes' command failed with exit code " + exitCode);
+        }
+
+        // 5. Post-process YAML files
+        Path yamlFilePath = kubernetesPath.resolve(appName + "-k8s/" + appName + "-deployment.yml");
+        Path serviceFilePath = kubernetesPath.resolve(appName + "-k8s/" + appName + "-service.yml");
+
+        if (Files.exists(yamlFilePath)) {
+            modifyDeploymentYaml(yamlFilePath, appName, accountId, region);
+        }
+        if (Files.exists(serviceFilePath)) {
+            modifyServiceYaml(serviceFilePath);
+        }
+
+    } catch (IOException | InterruptedException e) {
+        LOGGER.log(Level.SEVERE, "Error creating Kubernetes directory", e);
+    }
+}
+        private static void modifyServiceYaml(Path serviceFilePath) {
         try {
             if (!Files.exists(serviceFilePath)) {
                 LOGGER.warning("Service YAML file not found: " + serviceFilePath.toString());

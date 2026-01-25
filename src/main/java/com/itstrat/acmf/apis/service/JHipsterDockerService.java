@@ -187,16 +187,87 @@ public class JHipsterDockerService {
      * @throws InterruptedException If the Docker process is interrupted while running.
      * @throws RuntimeException If Docker is not installed, not running, or if the JHipster generation fails.
      */
+//    private void runDocker(File appDir) throws IOException, InterruptedException {
+//        // Docker command to run JHipster inside the official Docker image
+//        // -v mounts the target directory into the container (/home/jhipster/app)
+//        // -w sets the working directory inside the container
+//        // Flags: --force (overwrite files), --skip-install, --skip-git, --no-insight, --defaults (non-interactive)
+//        String dockerCmd = String.format(
+//                "docker run --rm -u root -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+//                        "jhipster/jhipster:v8.11.0 jhipster --force --skip-install --skip-git --no-insight --defaults",
+//                appDir.getAbsolutePath().replace("\\", "/")
+//        );
+//
+//        // Detect host OS to determine how to invoke the shell
+//        String os = System.getProperty("os.name").toLowerCase();
+//        ProcessBuilder pb;
+//        if (os.contains("win")) {
+//            pb = new ProcessBuilder("cmd.exe", "/c", dockerCmd);
+//        } else {
+//            pb = new ProcessBuilder("/bin/bash", "-c", dockerCmd);
+//        }
+//
+//        // Merge stderr into stdout for consistent log output
+//        pb.redirectErrorStream(true);
+//
+//        // Validate Docker availability
+//        if (!isDockerInstalled()) {
+//            throw new RuntimeException("Docker is not installed or not in PATH. Please install Docker and try again.");
+//        }
+//        if (!isDockerRunning()) {
+//            throw new RuntimeException("Docker is not running. Please start Docker Desktop and try again.");
+//        }
+//
+//        // Start the Docker process
+//        Process process = pb.start();
+//
+//        // Stream logs from the container in real time
+//        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                System.out.println("[Docker] " + line);
+//            }
+//        }
+//
+//        // Wait for the process to finish and validate exit code
+//        int exitCode = process.waitFor();
+//        if (exitCode != 0) {
+//            throw new RuntimeException(
+//                    "JHipster Docker generation failed for: " + appDir.getAbsolutePath() +
+//                            "\nPossible causes:\n" +
+//                            "- Invalid permissions to mount the folder.\n" +
+//                            "- Docker image issues.\n" +
+//                            "- Volume sharing not enabled in Docker settings."
+//            );
+//        }
+//    }
+
     private void runDocker(File appDir) throws IOException, InterruptedException {
-        // Docker command to run JHipster inside the official Docker image
-        // -v mounts the target directory into the container (/home/jhipster/app)
-        // -w sets the working directory inside the container
-        // Flags: --force (overwrite files), --skip-install, --skip-git, --no-insight, --defaults (non-interactive)
+        // 1. Determine the path on the HOST machine (EC2)
+        String hostRootPath = System.getenv("HOST_ROOT_PATH");
+        String mountPath;
+
+        if (hostRootPath != null && !hostRootPath.isEmpty()) {
+            // We are running in Docker on EC2.
+            // We must use the Host's path for the volume mount.
+            // appDir.getName() gives us "test1"
+            mountPath = hostRootPath + "/" + appDir.getName();
+        } else {
+            // Local development (Windows/Mac) or no Env Var set
+            mountPath = appDir.getAbsolutePath().replace("\\", "/");
+        }
+
+        // 2. Construct the command using the correct Host Path
         String dockerCmd = String.format(
-                "docker run --rm -u root -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+                "docker run --rm -i -u root " +
+                        "-v /var/run/docker.sock:/var/run/docker.sock " + // Access Docker Daemon
+                        "-v \"%s:/home/jhipster/app\" " +
+                        "-w /home/jhipster/app " +
                         "jhipster/jhipster:v8.11.0 jhipster --force --skip-install --skip-git --no-insight --defaults",
-                appDir.getAbsolutePath().replace("\\", "/")
+                mountPath
         );
+
+        System.out.println("Executing Docker Command: " + dockerCmd); // Debug log
 
         // Detect host OS to determine how to invoke the shell
         String os = System.getProperty("os.name").toLowerCase();
@@ -210,18 +281,13 @@ public class JHipsterDockerService {
         // Merge stderr into stdout for consistent log output
         pb.redirectErrorStream(true);
 
-        // Validate Docker availability
+        // ... (Rest of the validation and process start code remains the same)
         if (!isDockerInstalled()) {
-            throw new RuntimeException("Docker is not installed or not in PATH. Please install Docker and try again.");
-        }
-        if (!isDockerRunning()) {
-            throw new RuntimeException("Docker is not running. Please start Docker Desktop and try again.");
+            throw new RuntimeException("Docker is not installed...");
         }
 
-        // Start the Docker process
         Process process = pb.start();
 
-        // Stream logs from the container in real time
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -229,16 +295,9 @@ public class JHipsterDockerService {
             }
         }
 
-        // Wait for the process to finish and validate exit code
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            throw new RuntimeException(
-                    "JHipster Docker generation failed for: " + appDir.getAbsolutePath() +
-                            "\nPossible causes:\n" +
-                            "- Invalid permissions to mount the folder.\n" +
-                            "- Docker image issues.\n" +
-                            "- Volume sharing not enabled in Docker settings."
-            );
+            throw new RuntimeException("JHipster Docker generation failed...");
         }
     }
 
