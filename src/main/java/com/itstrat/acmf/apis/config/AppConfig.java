@@ -6,6 +6,7 @@ import java.util.Collections;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod; // Added this import
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -31,17 +32,7 @@ public class AppConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 // 2. CORS Configuration (Allow everything)
-                .cors(cors -> cors.configurationSource(request -> {
-                    CorsConfiguration config = new CorsConfiguration();
-                    // THIS FIXES THE ISSUE: Allows EC2 IP, localhost, anything.
-                    config.setAllowedOriginPatterns(Collections.singletonList("*"));
-                    config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-                    config.setAllowedHeaders(Collections.singletonList("*"));
-                    config.setAllowCredentials(true);
-                    config.setExposedHeaders(Arrays.asList("Authorization"));
-                    config.setMaxAge(3600L);
-                    return config;
-                }))
+                .cors(Customizer.withDefaults())
 
                 // 3. Disable CSRF (Standard for APIs)
                 .csrf(csrf -> csrf.disable())

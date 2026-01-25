@@ -54,11 +54,4 @@ public class JwtTokenValidator extends OncePerRequestFilter {
 
     }
 
-    // Inside your JwtTokenValidator class
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Skip validation for OPTIONS requests (Preflight)
-        return request.getMethod().equals("OPTIONS");
-    }
-
 }
