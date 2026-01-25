@@ -430,14 +430,40 @@ public class ProjectController {
         }
     }
 
+//    private void initGitAndPushToGitHub(String projectPath, String repoUrl, String username, String token) throws IOException, InterruptedException {
+//        runCommand(new File(projectPath), "git", "init");
+//        runCommand(new File(projectPath), "git", "add", ".");
+//        runCommand(new File(projectPath), "git", "commit", "-m", "Initial commit");
+//        runCommand(new File(projectPath), "git", "branch", "-M", "main");
+//        String remoteUrlWithAuth = repoUrl.replace("https://", "https://" + username + ":" + token + "@");
+//        runCommand(new File(projectPath), "git", "remote", "add", "origin", remoteUrlWithAuth);
+//        runCommand(new File(projectPath), "git", "push", "-u", "origin", "main");
+//    }
     private void initGitAndPushToGitHub(String projectPath, String repoUrl, String username, String token) throws IOException, InterruptedException {
-        runCommand(new File(projectPath), "git", "init");
-        runCommand(new File(projectPath), "git", "add", ".");
-        runCommand(new File(projectPath), "git", "commit", "-m", "Initial commit");
-        runCommand(new File(projectPath), "git", "branch", "-M", "main");
+        File dir = new File(projectPath);
+
+        // 1. Initialize
+        runCommand(dir, "git", "init");
+
+        // 2. Configure Identity (CRITICAL FIX)
+        runCommand(dir, "git", "config", "user.email", "bot@acmf.com");
+        runCommand(dir, "git", "config", "user.name", "ACMF Bot");
+
+        // 3. Add files
+        runCommand(dir, "git", "add", ".");
+
+        // 4. Commit
+        runCommand(dir, "git", "commit", "-m", "Initial commit by ACMF");
+
+        // 5. Rename branch to main
+        runCommand(dir, "git", "branch", "-M", "main");
+
+        // 6. Add Remote
         String remoteUrlWithAuth = repoUrl.replace("https://", "https://" + username + ":" + token + "@");
-        runCommand(new File(projectPath), "git", "remote", "add", "origin", remoteUrlWithAuth);
-        runCommand(new File(projectPath), "git", "push", "-u", "origin", "main");
+        runCommand(dir, "git", "remote", "add", "origin", remoteUrlWithAuth);
+
+        // 7. Push
+        runCommand(dir, "git", "push", "-u", "origin", "main");
     }
 
     private void runCommand(File workingDir, String... command) throws IOException, InterruptedException {

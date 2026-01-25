@@ -61,9 +61,17 @@ public class DeploymentService {
     private static boolean runJHipsterDockerCompose(String newProjectPath) {
         try {
             // Start the JHipster Docker Compose process
+//            String dockerCmd = String.format(
+//                    "docker run --rm -i -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+//                            "jhipster/jhipster:v8.11.0 jhipster docker-compose",
+//                    new File(newProjectPath).getAbsolutePath()
+//            );
             String dockerCmd = String.format(
-                    "docker run --rm -i -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
-                            "jhipster/jhipster:v8.11.0 jhipster docker-compose",
+                    "docker run --rm -i " +
+                            "-v /var/run/docker.sock:/var/run/docker.sock " + // CRITICAL: Access host Docker
+                            "-v \"%s:/home/jhipster/app\" " +
+                            "-w /home/jhipster/app " +
+                            "jhipster/jhipster:v8.11.0 jhipster docker-compose --skip-checks", // Added --skip-checks to avoid strict version check
                     new File(newProjectPath).getAbsolutePath()
             );
             ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
