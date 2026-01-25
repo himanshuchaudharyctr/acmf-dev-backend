@@ -61,8 +61,15 @@ public class DeploymentService {
     private static boolean runJHipsterDockerCompose(String newProjectPath) {
         try {
             // Start the JHipster Docker Compose process
-            ProcessBuilder processBuilder = new ProcessBuilder("cmd.exe", "/c", "jhipster docker-compose");
-            processBuilder.directory(new File(newProjectPath));
+            String dockerCmd = String.format(
+                    "docker run --rm -i -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+                            "jhipster/jhipster:v8.11.0 jhipster docker-compose",
+                    new File(newProjectPath).getAbsolutePath()
+            );
+            ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
+            processBuilder.redirectErrorStream(true);
+//            ProcessBuilder processBuilder = new ProcessBuilder("cmd.exe", "/c", "jhipster docker-compose");
+//            processBuilder.directory(new File(newProjectPath));
 
             Process process = processBuilder.start();
             LOGGER.info("JHipster Docker Compose command started successfully in: " + newProjectPath);
@@ -162,9 +169,31 @@ public class DeploymentService {
                 LOGGER.info(".yo-rc.json file created at: " + yoRcFilePath.toString());
 
 
-                ProcessBuilder processBuilder = new ProcessBuilder("cmd.exe", "/c", "jhipster kubernetes");
-                processBuilder.directory(kubernetesPath.toFile());
+//                ProcessBuilder processBuilder = new ProcessBuilder("cmd.exe", "/c", "jhipster kubernetes");
+//                processBuilder.directory(kubernetesPath.toFile());
+//                Process process = processBuilder.start();
+//                process.waitFor();
+
+                // FIX: Use Docker to run JHipster Kubernetes generation
+                String dockerCmd = String.format(
+                        "docker run --rm -i -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+                                "jhipster/jhipster:v8.11.0 jhipster kubernetes --force --skip-checks",
+                        kubernetesPath.toAbsolutePath().toString()
+                );
+
+                ProcessBuilder processBuilder = createProcessBuilder(dockerCmd);
+                processBuilder.redirectErrorStream(true);
+
                 Process process = processBuilder.start();
+
+                // Read output to prevent process blocking
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        LOGGER.info("[K8s Gen]: " + line);
+                    }
+                }
+
                 process.waitFor();
 
 
@@ -418,6 +447,16 @@ public class DeploymentService {
 
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Error creating Kubernetes manifests for microservices", e);
+        }
+    }
+
+    // ADD THIS METHOD AT THE BOTTOM OF YOUR CLASS
+    private static ProcessBuilder createProcessBuilder(String command) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return new ProcessBuilder("cmd.exe", "/c", command);
+        } else {
+            return new ProcessBuilder("/bin/bash", "-c", command);
         }
     }
 }
