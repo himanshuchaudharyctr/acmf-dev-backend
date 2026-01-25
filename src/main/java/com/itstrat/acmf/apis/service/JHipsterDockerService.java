@@ -193,7 +193,7 @@ public class JHipsterDockerService {
         // -w sets the working directory inside the container
         // Flags: --force (overwrite files), --skip-install, --skip-git, --no-insight, --defaults (non-interactive)
         String dockerCmd = String.format(
-                "docker run --rm -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
+                "docker run --rm -u root -v \"%s:/home/jhipster/app\" -w /home/jhipster/app " +
                         "jhipster/jhipster:v8.11.0 jhipster --force --skip-install --skip-git --no-insight --defaults",
                 appDir.getAbsolutePath().replace("\\", "/")
         );
