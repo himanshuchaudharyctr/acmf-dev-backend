@@ -242,25 +242,116 @@ public class JHipsterDockerService {
 //        }
 //    }
 
+//    private void runDocker(File appDir) throws IOException, InterruptedException {
+//        // 1. Determine the path on the HOST machine (EC2)
+//        String hostRootPath = System.getenv("HOST_ROOT_PATH");
+//        String mountPath;
+//
+//        if (hostRootPath != null && !hostRootPath.isEmpty()) {
+//            // We are running in Docker on EC2.
+//            // We must use the Host's path for the volume mount.
+//            // appDir.getName() gives us "test1"
+//            mountPath = hostRootPath + "/" + appDir.getName();
+//        } else {
+//            // Local development (Windows/Mac) or no Env Var set
+//            mountPath = appDir.getAbsolutePath().replace("\\", "/");
+//        }
+//
+//        // 2. Construct the command using the correct Host Path
+//        String dockerCmd = String.format(
+//                "docker run --rm -i -u root " +
+//                        "-v /var/run/docker.sock:/var/run/docker.sock " + // Access Docker Daemon
+//                        "-v \"%s:/home/jhipster/app\" " +
+//                        "-w /home/jhipster/app " +
+//                        "jhipster/jhipster:v8.11.0 jhipster --force --skip-install --skip-git --no-insight --defaults",
+//                mountPath
+//        );
+//
+//        System.out.println("Executing Docker Command: " + dockerCmd); // Debug log
+//
+//        // Detect host OS to determine how to invoke the shell
+//        String os = System.getProperty("os.name").toLowerCase();
+//        ProcessBuilder pb;
+//        if (os.contains("win")) {
+//            pb = new ProcessBuilder("cmd.exe", "/c", dockerCmd);
+//        } else {
+//            pb = new ProcessBuilder("/bin/bash", "-c", dockerCmd);
+//        }
+//
+//        // Merge stderr into stdout for consistent log output
+//        pb.redirectErrorStream(true);
+//
+//        // ... (Rest of the validation and process start code remains the same)
+//        if (!isDockerInstalled()) {
+//            throw new RuntimeException("Docker is not installed...");
+//        }
+//
+//        Process process = pb.start();
+//
+//        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+//            String line;
+//            while ((line = reader.readLine()) != null) {
+//                System.out.println("[Docker] " + line);
+//            }
+//        }
+//
+//        int exitCode = process.waitFor();
+//        if (exitCode != 0) {
+//            throw new RuntimeException("JHipster Docker generation failed...");
+//        }
+//    }
+
     private void runDocker(File appDir) throws IOException, InterruptedException {
         // 1. Determine the path on the HOST machine (EC2)
         String hostRootPath = System.getenv("HOST_ROOT_PATH");
         String mountPath;
 
         if (hostRootPath != null && !hostRootPath.isEmpty()) {
-            // We are running in Docker on EC2.
-            // We must use the Host's path for the volume mount.
-            // appDir.getName() gives us "test1"
-            mountPath = hostRootPath + "/" + appDir.getName();
+            // CRITICAL FIX: Calculate the relative path from the backend's internal working directory
+            // This ensures structures like 'microservice-system/service1' are preserved
+            // instead of just flattening it to 'service1'
+
+            String internalPath = appDir.getAbsolutePath();
+            // Example internalPath: /app/generated-projects/microservice-system/gateway1
+
+            String splitMarker = "generated-projects";
+            int index = internalPath.indexOf(splitMarker);
+
+            String relativePath;
+            if (index != -1) {
+                // Extract everything after "generated-projects"
+                // Result: /microservice-system/gateway1
+                relativePath = internalPath.substring(index + splitMarker.length());
+            } else {
+                // Fallback if path structure is different
+                relativePath = "/" + appDir.getName();
+            }
+
+            // Ensure no double slashes or missing slashes when joining
+            if (!hostRootPath.endsWith("/")) {
+                hostRootPath += "/";
+            }
+            if (relativePath.startsWith("/") || relativePath.startsWith("\\")) {
+                relativePath = relativePath.substring(1);
+            }
+
+            // Final Path: /home/ec2-user/generated-projects/microservice-system/gateway1
+            mountPath = hostRootPath + relativePath;
+
+            // Fix Windows slashes if they appeared somehow
+            mountPath = mountPath.replace("\\", "/");
+
         } else {
             // Local development (Windows/Mac) or no Env Var set
             mountPath = appDir.getAbsolutePath().replace("\\", "/");
         }
 
         // 2. Construct the command using the correct Host Path
+        // -u root: Runs as root to avoid permission issues
+        // -v ...docker.sock: Allows the inner JHipster container to check Docker version if needed
         String dockerCmd = String.format(
                 "docker run --rm -i -u root " +
-                        "-v /var/run/docker.sock:/var/run/docker.sock " + // Access Docker Daemon
+                        "-v /var/run/docker.sock:/var/run/docker.sock " +
                         "-v \"%s:/home/jhipster/app\" " +
                         "-w /home/jhipster/app " +
                         "jhipster/jhipster:v8.11.0 jhipster --force --skip-install --skip-git --no-insight --defaults",
@@ -281,13 +372,14 @@ public class JHipsterDockerService {
         // Merge stderr into stdout for consistent log output
         pb.redirectErrorStream(true);
 
-        // ... (Rest of the validation and process start code remains the same)
+        // Validate Docker availability
         if (!isDockerInstalled()) {
-            throw new RuntimeException("Docker is not installed...");
+            throw new RuntimeException("Docker is not installed or not in PATH. Please install Docker and try again.");
         }
 
         Process process = pb.start();
 
+        // Stream logs from the container in real time
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
             String line;
             while ((line = reader.readLine()) != null) {
@@ -297,7 +389,7 @@ public class JHipsterDockerService {
 
         int exitCode = process.waitFor();
         if (exitCode != 0) {
-            throw new RuntimeException("JHipster Docker generation failed...");
+            throw new RuntimeException("JHipster Docker generation failed for: " + appDir.getAbsolutePath());
         }
     }
 
