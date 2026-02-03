@@ -916,24 +916,27 @@ jobs:
             # Shared network
             docker network inspect app-network >/dev/null 2>&1 || docker network create app-network
 
-            # --- NUCLEAR FIX: Force Clean & Restart Postgres ---
-            # This ensures no stale volume data causes auth issues
-            echo "Removing old Postgres container..."
-            docker rm -f postgres || true
-            
-            echo "Removing old Postgres volume to force re-init..."
-            docker volume rm pgdata || true
-
-            echo "Starting new Postgres container..."
-            docker run -d \
-                --name postgres \
-                --network app-network \
-                -e POSTGRES_USER=platform_admin \
-                -e POSTGRES_PASSWORD=strongpassword \
-                -e POSTGRES_DB=postgres \
-                -p 5432:5432 \
-                -v pgdata:/var/lib/postgresql/data \
+            if docker ps -a --format '{{.Names}}' | grep -q "^postgres$"; then
+              echo "✅ Postgres container found."
+              if [ "$(docker ps -q -f name=postgres)" ]; then
+                 echo "   It is already running. Skipping start."
+              else
+                 echo "   It is stopped. Starting it..."
+                 docker start postgres
+              fi
+            else
+              echo "🆕 Postgres container NOT found. Creating new one..."
+              # Note: We use -v pgdata:/... to ensure data persists in a volume even if container is deleted later
+              docker run -d \\
+                --name postgres \\
+                --network app-network \\
+                -e POSTGRES_USER=platform_admin \\
+                -e POSTGRES_PASSWORD=strongpassword \\
+                -e POSTGRES_DB=postgres \\
+                -p 5432:5432 \\
+                -v pgdata:/var/lib/postgresql/data \\
                 postgres:17
+            fi
             
             # Wait for Postgres with timeout
             count=0
