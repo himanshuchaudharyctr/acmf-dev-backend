@@ -982,6 +982,8 @@ jobs:
                 repoName,
                 githubOrg,
                 repoName,
+                githubOrg,
+                repoName,
                 repoName,
                 serviceLoop,
                 dockerPulls
