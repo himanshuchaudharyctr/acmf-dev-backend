@@ -906,10 +906,11 @@ jobs:
             # Clone or sync repo
             if [ -d "%s/.git" ]; then
               cd %s
+              git remote set-url origin https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/%s/%s.git
               git fetch origin
               git reset --hard origin/main
             else
-              git clone https://github.com/%s/%s.git
+              git clone https://x-access-token:${{ secrets.TOKEN_GITHUB }}@github.com/%s/%s.git
               cd %s
             fi
 
