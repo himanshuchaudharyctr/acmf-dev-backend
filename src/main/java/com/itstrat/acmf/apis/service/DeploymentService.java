@@ -474,7 +474,7 @@ public static void createKubernetesDirectory(String newProjectPath, String appNa
             lines.add("      - SPRING_PROFILES_ACTIVE=prod");
             lines.add("      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/" + name);
             lines.add("      - SPRING_LIQUIBASE_URL=jdbc:postgresql://postgres:5432/" + name);
-            lines.add("      - SPRING_R2DBC_URL=jdbc:postgresql://postgres:5432/" + name);
+            lines.add("      - SPRING_R2DBC_URL=r2dbc:postgresql://postgres:5432/" + name);
             lines.add("      - SERVER_SERVLET_SESSION_COOKIE_SECURE=false");
             lines.add("      - JHIPSTER_SECURITY_AUTHENTICATION_JWT_BASE64_SECRET=YzNmZGM5NzQyMzU4MGQ4NDM4NjgwOTc0ZWU3OTlmMjE5YjYwZGIwN2UyZTU1NjgwYThhZmI2N2UzZTAxZGU2Yzc2Y2VlODQ5N2IyNzhjNDY4ZGI2ZmMzNjI1YTA5OTk4ODg1ZTVlODdkNDU4NTI1MzM4MmZjYmE4ZTE3MGE2ZmQ=");
             lines.add("      - SPRING_DATASOURCE_USERNAME=" + name + "_user");
